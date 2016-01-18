@@ -43,19 +43,19 @@ typedef std::vector < std::vector < Real > > Vector2D;
 
 int main(void)
 {
-    // some constants
+    // some constants values are defined here
     // earth radius
     // grav. parameter 'mu' of earth
     // value of Pi
 
 	// initialize input parameters for the function generating random orbital elements. Description can be
     // found in randomKepElem.hpp for each of the following parameters. 
-    const Vector2 range_a      = { 0, 1 };
-    const Vector2 range_e      = { 0, 1 };
-    const Vector2 range_i      = { 0, 1 };
-    const Vector2 range_raan   = { 0, 1 };
-    const Vector2 range_w      = { 0, 1 };
-    const Vector2 range_E      = { 0, 1 };
+    const Vector2 range_a      = { 0, 10 };
+    const Vector2 range_e      = { 20, 30 };
+    const Vector2 range_i      = { 40, 50 };
+    const Vector2 range_raan   = { 60, 70 };
+    const Vector2 range_w      = { 80, 90 };
+    const Vector2 range_E      = { 100, 110 };
     const int limit            = 100;
     Vector2D randKepElem( limit, std::vector< Real >( 6 ) );
 
@@ -70,7 +70,9 @@ int main(void)
     //store randomly generated keplerian element sets into a CSV file for easy viewing and use in future debugging of ATOM
     std::ofstream RandomKepElemFile;
     RandomKepElemFile.open("RandomKepElemFile.csv"); //file will be overwritten each time the code is run unless the name is changed here and the code recompiled
-    
+    RandomKepElemFile << "semi-major axis [km]" << "," << "eccentricity" << ",";
+    RandomKepElemFile << "Inclination [deg]" << "," << "RAAN [deg]" << ",";
+    RandomKepElemFile << "AOP [deg]" << "," << "Eccentric Anomaly [deg]" << std::endl;
     for(int i = 0; i < limit; i++)
     {
         for(int j = 0; j < 6; j++)
