@@ -27,6 +27,8 @@
 
 #include <Astro/astro.hpp>
 #include <SML/sml.hpp>
+#include <SML/constants.hpp>
+#include <SML/basicFunctions.hpp>
 
 #include <Atom/printFunctions.hpp>
 
@@ -34,6 +36,8 @@
 #include <Atom/convertCartesianStateToTwoLineElements.hpp>
 
 #include "CppProject/randomKepElem.hpp"
+
+#include "/media/abhishek/work/TU delft/INTERNSHIP at DINAMICA/work/github/pykep/src/core_functions/par2ic.h"
 
 typedef double Real;
 typedef std::vector< Real > Vector6;
@@ -44,18 +48,21 @@ typedef std::vector < std::vector < Real > > Vector2D;
 int main(void)
 {
     // some constants values are defined here
+    const double km2m = 1000; // conversion from km to m
+    const double m2km = 1/1000; // conversion from m to km
     // earth radius
+    const double EarthRadius = 6378.4; // unit Km
     // grav. parameter 'mu' of earth
-    // value of Pi
-
+    const double muEarth = 3986400*(10^9); // unit m^3/s^2
+    
 	// initialize input parameters for the function generating random orbital elements. Description can be
     // found in randomKepElem.hpp for each of the following parameters. 
-    const Vector2 range_a      = { 0, 10 };
-    const Vector2 range_e      = { 20, 30 };
-    const Vector2 range_i      = { 40, 50 };
-    const Vector2 range_raan   = { 60, 70 };
-    const Vector2 range_w      = { 80, 90 };
-    const Vector2 range_E      = { 100, 110 };
+    const Vector2 range_a      = { (EarthRadius+100)*km2m, (EarthRadius+1000)*km2m };
+    const Vector2 range_e      = { 0, 1 };
+    const Vector2 range_i      = { 0, sml::convertDegreesToRadians( 90.0 ) };
+    const Vector2 range_raan   = { 0, sml::convertDegreesToRadians( 180.0 ) };
+    const Vector2 range_w      = { 0, sml::convertDegreesToRadians( 180.0 ) };
+    const Vector2 range_E      = { 0, sml::convertDegreesToRadians( 360.0 ) };
     const int limit            = 100;
     Vector2D randKepElem( limit, std::vector< Real >( 6 ) );
 
@@ -75,16 +82,30 @@ int main(void)
     RandomKepElemFile << "AOP [deg]" << "," << "Eccentric Anomaly [deg]" << std::endl;
     for(int i = 0; i < limit; i++)
     {
-        for(int j = 0; j < 6; j++)
-        {
-            RandomKepElemFile << randKepElem[ i ][ j ] << ",";
-        }
-        RandomKepElemFile << std::endl;
+        RandomKepElemFile << randKepElem[ i ][ 0 ] * m2km << ",";
+        RandomKepElemFile << randKepElem[ i ][ 1 ] << ",";
+        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 2 ] ) << ",";
+        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 3 ] ) << ",";
+        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 4 ] ) << ",";
+        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 5 ] ) << std::endl;
     }
     RandomKepElemFile.close();
 
     // generate sets of cartesian elements corresponding to each of the psuedo random orbital element set. 
     // The conversion from keplerian elements to the cartesian elements is done using the PyKep library from ESA.
+    Vector2D CartPos( limit, std::vector< Real >( 3 ) ); // empty 2D vector to store position coordinates
+    Vector2D CartVel( limit, std::vector< Real >( 3 ) ); // empty 2D vector to store velocity components
+    Vector6 tempKep( 6 ); // temporary storage vector to store a given set of keplerian elements
+    Vector3 tempPos( 3 ); // temp storage vector for cartesian position
+    Vector3 tempVel( 3 ); // temp storage vector for cartesian velocity
+
+    for(int k = 0; k < limit; k++)
+    {
+        tempKep = randKepElem[ k ]; // transferring an entire row of the 2D vector which contains a single set of orbital elements
+        kep_toolbox::par2ic( tempKep, muEarth, tempPos, tempVel );
+        CartPos[ k ] = tempPos; // storing the output position coordinates in a row of the final 2D vector
+        CartVel[ k ] = tempVel; // same as above comment but this time for velocity    
+    }
     
 
 	// Tle convertedTle = atom::convertCartesianStateToTwoLineElements< Real, Vector6 >( cartesianState, DateTime( ) );
