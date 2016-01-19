@@ -36,6 +36,7 @@
 #include <Atom/convertCartesianStateToTwoLineElements.hpp>
 
 #include "CppProject/randomKepElem.hpp"
+#include "CppProject/KepToCart.hpp"
 
 #include "/media/abhishek/work/TU delft/INTERNSHIP at DINAMICA/work/github/pykep/src/core_functions/par2ic.h"
 
@@ -49,21 +50,20 @@ int main(void)
 {
     // some constants values are defined here
     const double km2m = 1000; // conversion from km to m
-    const double m2km = 1/1000; // conversion from m to km
     // earth radius
-    const double EarthRadius = 6378.4; // unit Km
+    const double EarthRadius = 6378.4 * km2m; // unit Km
     // grav. parameter 'mu' of earth
-    const double muEarth = 3986400*(10^9); // unit m^3/s^2
+    const double muEarth = 398600.441*( pow( 10, 9 ) ); // unit m^3/s^2
     
 	// initialize input parameters for the function generating random orbital elements. Description can be
     // found in randomKepElem.hpp for each of the following parameters. 
-    const Vector2 range_a      = { (EarthRadius+100)*km2m, (EarthRadius+1000)*km2m };
+    const Vector2 range_a      = { (EarthRadius+100000), (EarthRadius+1000000) };
     const Vector2 range_e      = { 0, 1 };
-    const Vector2 range_i      = { 0, sml::convertDegreesToRadians( 90.0 ) };
-    const Vector2 range_raan   = { 0, sml::convertDegreesToRadians( 180.0 ) };
-    const Vector2 range_w      = { 0, sml::convertDegreesToRadians( 180.0 ) };
+    const Vector2 range_i      = { 0, sml::convertDegreesToRadians( 180.0 ) };
+    const Vector2 range_raan   = { 0, sml::convertDegreesToRadians( 360.0 ) };
+    const Vector2 range_w      = { 0, sml::convertDegreesToRadians( 360.0 ) };
     const Vector2 range_E      = { 0, sml::convertDegreesToRadians( 360.0 ) };
-    const int limit            = 100;
+    const int limit            = 10;
     Vector2D randKepElem( limit, std::vector< Real >( 6 ) );
 
     // call the function to generate random keplerian orbital elements. Values are stored in randKepElem in a 2D
@@ -72,7 +72,7 @@ int main(void)
     randomKepElem::randomKepElem( range_a, range_e, range_i, range_raan, range_w, range_E, limit, randKepElem );
 
     // test output to check if the random numbers are generated without any errors
-    std::cout << randKepElem[ 0 ][ 1 ] << std::endl;
+    //std::cout << randKepElem[ 0 ][ 1 ] << std::endl;
 
     //store randomly generated keplerian element sets into a CSV file for easy viewing and use in future debugging of ATOM
     std::ofstream RandomKepElemFile;
@@ -82,7 +82,7 @@ int main(void)
     RandomKepElemFile << "AOP [deg]" << "," << "Eccentric Anomaly [deg]" << std::endl;
     for(int i = 0; i < limit; i++)
     {
-        RandomKepElemFile << randKepElem[ i ][ 0 ] * m2km << ",";
+        RandomKepElemFile << ( randKepElem[ i ][ 0 ]/1000 ) << ",";
         RandomKepElemFile << randKepElem[ i ][ 1 ] << ",";
         RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 2 ] ) << ",";
         RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 3 ] ) << ",";
@@ -98,7 +98,8 @@ int main(void)
     Vector6 tempKep( 6 ); // temporary storage vector to store a given set of keplerian elements
     Vector3 tempPos( 3 ); // temp storage vector for cartesian position
     Vector3 tempVel( 3 ); // temp storage vector for cartesian velocity
-
+    Real rangeMag = 0; // magnitude range
+    Real velocityMag = 0; // velocity magnitude
     for(int k = 0; k < limit; k++)
     {
         tempKep = randKepElem[ k ]; // transferring an entire row of the 2D vector which contains a single set of orbital elements
@@ -106,6 +107,72 @@ int main(void)
         CartPos[ k ] = tempPos; // storing the output position coordinates in a row of the final 2D vector
         CartVel[ k ] = tempVel; // same as above comment but this time for velocity    
     }
+    // verification of the conversion process using Ron Noomen's lecture notes from TUDelft
+    // Document ID ae4878.basics.v4-16.pdf
+    Vector6 testKep = { 6787746.891, 0.000731104, sml::convertDegreesToRadians( 51.68714486 ), 
+        sml::convertDegreesToRadians( 127.5486706 ), sml::convertDegreesToRadians( 74.21987137 ), sml::convertDegreesToRadians( 24.08317766 ) };
+    Vector3 testPos( 3 );
+    Vector3 testVel( 3 );
+    kep_toolbox::par2ic( testKep, muEarth, testPos, testVel );    
+    std::cout << testPos[ 0 ] << std::endl;
+    std::cout << testPos[ 1 ] << std::endl;
+    std::cout << testPos[ 2 ] << std::endl;
+    std::cout << testVel[ 0 ] << std::endl;
+    std::cout << testVel[ 1 ] << std::endl;
+    std::cout << testVel[ 2 ] << std::endl;
+    
+    //store the converted cartesian elements in a CSV file 
+    std::ofstream RandomCartesianFile;
+    RandomCartesianFile.open("RandomCartesianFile.csv");
+    RandomCartesianFile << "X [km]" << "," << "Y [km]" << "," << "Z [km]" << "," << "Range [km]" << ",";
+    RandomCartesianFile << "Vx [km/s]" << "," << "Vy [km/s]" << "," << "Vz [km/s]" << "," << "Velocity [km/s]" << std::endl;
+    for(int j = 0; j < limit; j++)
+    {
+        RandomCartesianFile << ( CartPos[ j ][ 0 ]/1000 ) << ",";
+        RandomCartesianFile << ( CartPos[ j ][ 1 ]/1000 ) << ",";
+        RandomCartesianFile << ( CartPos[ j ][ 2 ]/1000 ) << ",";
+        rangeMag = sqrt( pow( CartPos[ j ][ 0 ], 2 ) + pow( CartPos[ j ][ 1 ], 2 ) + pow( CartPos[ j ][ 2 ], 2 ) );
+        RandomCartesianFile << ( rangeMag/1000 ) << ",";
+
+        RandomCartesianFile << ( CartVel[ j ][ 0 ]/1000 ) << ",";
+        RandomCartesianFile << ( CartVel[ j ][ 1 ]/1000 ) << ",";
+        RandomCartesianFile << ( CartVel[ j ][ 2 ]/1000 ) << ",";
+        velocityMag = sqrt( pow( CartVel[ j ][ 0 ], 2 ) + pow( CartVel[ j ][ 1 ], 2 ) + pow( CartVel[ j ][ 2 ], 2 ) );
+        RandomCartesianFile << ( velocityMag/1000 ) << std::endl;
+    }
+    RandomCartesianFile.close();
+
+    // use the KepToCart to do the conversion from keplerian elements to ECI cartesian elements 
+    // Vector2D ECIpos( limit, std::vector< Real >( 3 ) );
+    // Vector2D ECIvel( limit, std::vector< Real >( 3 ) );
+    // for(int k = 0; k < limit; k++)
+    // {
+    //     tempKep = randKepElem[ k ];
+    //     KepToCart::KepToCart( tempKep, muEarth, tempPos, tempVel );
+    //     ECIpos[ k ] = tempPos;
+    //     ECIvel[ k ] = tempVel;
+    // }
+    // //store the results of ECI cartesian coordinates in CSV file
+    // std::ofstream ECIfile;
+    // ECIfile.open("ECIfile.csv");
+    // ECIfile << "X [km]" << "," << "Y [km]" << "," << "Z [km]" << "," << "Range [km]" << ",";
+    // ECIfile << "Vx [km/s]" << "," << "Vy [km/s]" << "," << "Vz [km/s]" << "," << "Velocity [km/s]" << std::endl;
+    // for(int j = 0; j < limit; j++)
+    // {
+    //     ECIfile << ( ECIpos[ j ][ 0 ]/1000 ) << ",";
+    //     ECIfile << ( ECIpos[ j ][ 1 ]/1000 ) << ",";
+    //     ECIfile << ( ECIpos[ j ][ 2 ]/1000 ) << ",";
+    //     rangeMag = sqrt( pow( ECIpos[ j ][ 0 ], 2 ) + pow( ECIpos[ j ][ 1 ], 2 ) + pow( ECIpos[ j ][ 2 ], 2 ) );
+    //     ECIfile << ( rangeMag/1000 ) << ",";
+
+    //     ECIfile << ( ECIvel[ j ][ 0 ]/1000 ) << ",";
+    //     ECIfile << ( ECIvel[ j ][ 1 ]/1000 ) << ",";
+    //     ECIfile << ( ECIvel[ j ][ 2 ]/1000 ) << ",";
+    //     velocityMag = sqrt( pow( ECIvel[ j ][ 0 ], 2 ) + pow( ECIvel[ j ][ 1 ], 2 ) + pow( ECIvel[ j ][ 2 ], 2 ) );
+    //     ECIfile << ( velocityMag/1000 ) << std::endl;
+    // }
+    // ECIfile.close();
+
     
 
 	// Tle convertedTle = atom::convertCartesianStateToTwoLineElements< Real, Vector6 >( cartesianState, DateTime( ) );
