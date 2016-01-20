@@ -51,56 +51,71 @@ int main(void)
     // some constants values are defined here
     const double km2m = 1000; // conversion from km to m
     // earth radius
-    const double EarthRadius = 6378.4 * km2m; // unit Km
+    const double EarthRadius = 6378.4 * km2m; // unit m
+    const double EarthDiam = 2 * EarthRadius;
     // grav. parameter 'mu' of earth
     const double muEarth = 398600.441*( pow( 10, 9 ) ); // unit m^3/s^2
     
 	// initialize input parameters for the function generating random orbital elements. Description can be
     // found in randomKepElem.hpp for each of the following parameters. 
-    const Vector2 range_a      = { (EarthRadius+100000), (EarthRadius+1000000) };
+    const Vector2 range_a      = { (EarthDiam+100000), (EarthDiam+1000000) }; 
     const Vector2 range_e      = { 0, 1 };
     const Vector2 range_i      = { 0, sml::convertDegreesToRadians( 180.0 ) };
     const Vector2 range_raan   = { 0, sml::convertDegreesToRadians( 360.0 ) };
     const Vector2 range_w      = { 0, sml::convertDegreesToRadians( 360.0 ) };
     const Vector2 range_E      = { 0, sml::convertDegreesToRadians( 360.0 ) };
-    const int limit            = 10;
-    Vector2D randKepElem( limit, std::vector< Real >( 6 ) );
-
+    const int limit            = 1000;
+    Vector2D randKep( limit, std::vector< Real >( 6 ) );
+    
     // call the function to generate random keplerian orbital elements. Values are stored in randKepElem in a 2D
     // vector format. A single row represents one set of orbital elements, arranged in the same order as the
     // input argument order of the elements. 
-    randomKepElem::randomKepElem( range_a, range_e, range_i, range_raan, range_w, range_E, limit, randKepElem );
+    randomKepElem::randomKepElem( range_a, range_e, range_i, range_raan, range_w, range_E, limit, randKep );
 
-    // test output to check if the random numbers are generated without any errors
-    //std::cout << randKepElem[ 0 ][ 1 ] << std::endl;
-
-    //store randomly generated keplerian element sets into a CSV file for easy viewing and use in future debugging of ATOM
-    std::ofstream RandomKepElemFile;
-    RandomKepElemFile.open("RandomKepElemFile.csv"); //file will be overwritten each time the code is run unless the name is changed here and the code recompiled
-    RandomKepElemFile << "semi-major axis [km]" << "," << "eccentricity" << ",";
-    RandomKepElemFile << "Inclination [deg]" << "," << "RAAN [deg]" << ",";
-    RandomKepElemFile << "AOP [deg]" << "," << "Eccentric Anomaly [deg]" << std::endl;
-    for(int i = 0; i < limit; i++)
+    
+    // remove orbital elements where the radius of perigee is inside earth
+    Vector2D randKepElem( limit, std::vector< Real >( 6 ) );
+    int newLimit = limit; // whenever a row of cartesian (keplerian) elements is removed, the limit will have to be changed. 
+    Real radiusPerigee = 0; // variable storing the radius of Perigee for an orbit. this is used in our checking condition
+    std::vector< int > rowsToDelete; // stores the row numbers which have to be deleted
+    int insideCounter = 0; // to count the number of times radius of perigee is inside the Earth. 
+    int outsideCounter = 0; // to count the number of times the radius of perigee is beyond a cetain upper limit
+    int newIndex = 0; // index counter for the second 2D vector
+    for(int j = 0; j < newLimit; j++)
     {
-        RandomKepElemFile << ( randKepElem[ i ][ 0 ]/1000 ) << ",";
-        RandomKepElemFile << randKepElem[ i ][ 1 ] << ",";
-        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 2 ] ) << ",";
-        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 3 ] ) << ",";
-        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 4 ] ) << ",";
-        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 5 ] ) << std::endl;
-    }
-    RandomKepElemFile.close();
+        radiusPerigee = randKep[ j ][ 0 ] * (1 - randKep[ j ][ 1 ]);
+        if(radiusPerigee <= EarthRadius )
+        {
+            insideCounter = insideCounter + 1; // counter increments everytime the condition is true
+        }
+        if(radiusPerigee >= (EarthRadius+2000000))
+        {
+            outsideCounter = outsideCounter + 1;
+        }
+        if(radiusPerigee > EarthRadius && radiusPerigee < (EarthRadius+2000000)) // this is obv not the most efficient way
+        {
+            randKepElem[ newIndex ] = randKep[ j ];
+            newIndex++;
+        }
+    } 
+    randKepElem.erase( randKepElem.begin() + newIndex, randKepElem.end() ); // delete the left over rows in the final random keplerian element vector
+    Vector2D ().swap(randKep); // create an empty vector with no memory allocated to it and swap it with the vector which you want to delete and deallocate the memory
+    std::cout << "Inside counter value = " << insideCounter << std::endl;
+    std::cout << "Outside counter value = " << outsideCounter << std::endl;
+    std::cout << "Usefull sets left = " << limit - (insideCounter + outsideCounter) << std::endl;
+    newLimit = randKepElem.size();
+    std::cout << "Number of final rows in randKepElem 2D vector = " << newLimit << std::endl;
 
     // generate sets of cartesian elements corresponding to each of the psuedo random orbital element set. 
     // The conversion from keplerian elements to the cartesian elements is done using the PyKep library from ESA.
-    Vector2D CartPos( limit, std::vector< Real >( 3 ) ); // empty 2D vector to store position coordinates
-    Vector2D CartVel( limit, std::vector< Real >( 3 ) ); // empty 2D vector to store velocity components
+    Vector2D CartPos( newLimit, std::vector< Real >( 3 ) ); // empty 2D vector to store position coordinates
+    Vector2D CartVel( newLimit, std::vector< Real >( 3 ) ); // empty 2D vector to store velocity components
     Vector6 tempKep( 6 ); // temporary storage vector to store a given set of keplerian elements
     Vector3 tempPos( 3 ); // temp storage vector for cartesian position
     Vector3 tempVel( 3 ); // temp storage vector for cartesian velocity
     Real rangeMag = 0; // magnitude range
     Real velocityMag = 0; // velocity magnitude
-    for(int k = 0; k < limit; k++)
+    for(int k = 0; k < newLimit; k++)
     {
         tempKep = randKepElem[ k ]; // transferring an entire row of the 2D vector which contains a single set of orbital elements
         kep_toolbox::par2ic( tempKep, muEarth, tempPos, tempVel );
@@ -120,13 +135,32 @@ int main(void)
     std::cout << testVel[ 0 ] << std::endl;
     std::cout << testVel[ 1 ] << std::endl;
     std::cout << testVel[ 2 ] << std::endl;
+
     
+    //store randomly generated keplerian element sets into a CSV file for easy viewing and use in future debugging of ATOM
+    std::ofstream RandomKepElemFile;
+    RandomKepElemFile.open("RandomKepElemFile_deletedScenes.csv"); //file will be overwritten each time the code is run unless the name is changed here and the code recompiled
+    RandomKepElemFile << "semi-major axis [km]" << "," << "eccentricity" << ",";
+    RandomKepElemFile << "Inclination [deg]" << "," << "RAAN [deg]" << ",";
+    RandomKepElemFile << "AOP [deg]" << "," << "Eccentric Anomaly [deg]" << std::endl;
+    for(int i = 0; i < newLimit; i++)
+    {
+        RandomKepElemFile << ( randKepElem[ i ][ 0 ]/1000 ) << ",";
+        RandomKepElemFile << randKepElem[ i ][ 1 ] << ",";
+        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 2 ] ) << ",";
+        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 3 ] ) << ",";
+        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 4 ] ) << ",";
+        RandomKepElemFile << sml::convertRadiansToDegrees( randKepElem[ i ][ 5 ] ) << std::endl;
+    }
+    RandomKepElemFile.close();
+
+
     //store the converted cartesian elements in a CSV file 
     std::ofstream RandomCartesianFile;
-    RandomCartesianFile.open("RandomCartesianFile.csv");
+    RandomCartesianFile.open("RandomCartesianFile_deletedScenes.csv");
     RandomCartesianFile << "X [km]" << "," << "Y [km]" << "," << "Z [km]" << "," << "Range [km]" << ",";
     RandomCartesianFile << "Vx [km/s]" << "," << "Vy [km/s]" << "," << "Vz [km/s]" << "," << "Velocity [km/s]" << std::endl;
-    for(int j = 0; j < limit; j++)
+    for(int j = 0; j < newLimit; j++)
     {
         RandomCartesianFile << ( CartPos[ j ][ 0 ]/1000 ) << ",";
         RandomCartesianFile << ( CartPos[ j ][ 1 ]/1000 ) << ",";
