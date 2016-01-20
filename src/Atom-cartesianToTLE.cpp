@@ -99,7 +99,8 @@ int main(void)
         }
     } 
     randKepElem.erase( randKepElem.begin() + newIndex, randKepElem.end() ); // delete the left over rows in the final random keplerian element vector
-    Vector2D ().swap(randKep); // create an empty vector with no memory allocated to it and swap it with the vector which you want to delete and deallocate the memory
+    std::vector< std::vector < Real > > ().swap(randKep); // create an empty vector with no memory allocated to it ...
+    // ... and swap it with the vector which you want to delete and deallocate the memory
     std::cout << "Inside counter value = " << insideCounter << std::endl;
     std::cout << "Outside counter value = " << outsideCounter << std::endl;
     std::cout << "Usefull sets left = " << limit - (insideCounter + outsideCounter) << std::endl;
