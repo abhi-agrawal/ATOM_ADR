@@ -15,6 +15,11 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <exception>
+#include <cstdlib>
+#include <execinfo.h>
+
+#include <boost/exception/info.hpp>
 
 #include <gsl/gsl_multiroots.h>
 #include <gsl/gsl_vector.h>
@@ -48,13 +53,14 @@ typedef std::vector < std::vector < Real > > Vector2D;
 
 int main(void)
 {
+try{
     // some constants values are defined here
     const double km2m = 1000; // conversion from km to m
     // earth radius
-    const double EarthRadius = 6378.4 * km2m; // unit m
+    const double EarthRadius = kXKMPER * km2m; // unit m
     const double EarthDiam = 2 * EarthRadius;
     // grav. parameter 'mu' of earth
-    const double muEarth = 398600.441*( pow( 10, 9 ) ); // unit m^3/s^2
+    const double muEarth = kMU*( pow( 10, 9 ) ); // unit m^3/s^2
     
 	// initialize input parameters for the function generating random orbital elements. Description can be
     // found in randomKepElem.hpp for each of the following parameters. 
@@ -177,43 +183,72 @@ int main(void)
     }
     RandomCartesianFile.close();
 
-    // use the KepToCart to do the conversion from keplerian elements to ECI cartesian elements 
-    // Vector2D ECIpos( limit, std::vector< Real >( 3 ) );
-    // Vector2D ECIvel( limit, std::vector< Real >( 3 ) );
-    // for(int k = 0; k < limit; k++)
-    // {
-    //     tempKep = randKepElem[ k ];
-    //     KepToCart::KepToCart( tempKep, muEarth, tempPos, tempVel );
-    //     ECIpos[ k ] = tempPos;
-    //     ECIvel[ k ] = tempVel;
-    // }
-    // //store the results of ECI cartesian coordinates in CSV file
-    // std::ofstream ECIfile;
-    // ECIfile.open("ECIfile.csv");
-    // ECIfile << "X [km]" << "," << "Y [km]" << "," << "Z [km]" << "," << "Range [km]" << ",";
-    // ECIfile << "Vx [km/s]" << "," << "Vy [km/s]" << "," << "Vz [km/s]" << "," << "Velocity [km/s]" << std::endl;
-    // for(int j = 0; j < limit; j++)
-    // {
-    //     ECIfile << ( ECIpos[ j ][ 0 ]/1000 ) << ",";
-    //     ECIfile << ( ECIpos[ j ][ 1 ]/1000 ) << ",";
-    //     ECIfile << ( ECIpos[ j ][ 2 ]/1000 ) << ",";
-    //     rangeMag = sqrt( pow( ECIpos[ j ][ 0 ], 2 ) + pow( ECIpos[ j ][ 1 ], 2 ) + pow( ECIpos[ j ][ 2 ], 2 ) );
-    //     ECIfile << ( rangeMag/1000 ) << ",";
-
-    //     ECIfile << ( ECIvel[ j ][ 0 ]/1000 ) << ",";
-    //     ECIfile << ( ECIvel[ j ][ 1 ]/1000 ) << ",";
-    //     ECIfile << ( ECIvel[ j ][ 2 ]/1000 ) << ",";
-    //     velocityMag = sqrt( pow( ECIvel[ j ][ 0 ], 2 ) + pow( ECIvel[ j ][ 1 ], 2 ) + pow( ECIvel[ j ][ 2 ], 2 ) );
-    //     ECIfile << ( velocityMag/1000 ) << std::endl;
-    // }
-    // ECIfile.close();
-
+    // convert the cartesian elements to the corresponding TLE format using the ATOM toolbox
+    Vector6 cartesianState( 6 );
+    // cartesianState[ 0 ] = -7.1e3;
+    // cartesianState[ 1 ] = 2.7e3;
+    // cartesianState[ 2 ] = 1.3e3;
+    // cartesianState[ 3 ] = -2.5;
+    // cartesianState[ 4 ] = -5.5;
+    // cartesianState[ 5 ] = 5.5;
+    Tle convertedTle;
+    Tle referenceTle = Tle(); // empty TLE for reference
+    // std::cout << referenceTle << std::endl << std::endl;
+    std::string SolverStatus;
+    const Real absTol = 1.0e-10; // absolute tolerance
+    const Real relTol = 1.0e-5; // relative tolerance
+    const int maxItr = 100; // maximum allowed iterations per conversion run
+    // some other bookkeeping variables, these are not used in the convert to tle function
+    std::size_t findSuccess;
+    // file storage
+    std::ofstream tlefile;
+    tlefile.open("TLEfile.csv");
+    tlefile << "Conversion Status" << "," << "Iteration Count" << "," << "," << "Converted TLE" << "," << "Failure Index" << std::endl;
     
+    for(int i = 0; i < newLimit; i++)
+    {
+        // std::cout << "loop count = " << i << std::endl;
+        int IterationCount = 0; // counter for total iterations undertaken in a given instance of cartesian to TLE conversion
+        // important note, the atom function converting cartesian to TLEs takes in values in km and km/s.
+        cartesianState[ 0 ] = CartPos[ i ][ 0 ]/1000;
+        cartesianState[ 1 ] = CartPos[ i ][ 1 ]/1000;
+        cartesianState[ 2 ] = CartPos[ i ][ 2 ]/1000;
+        cartesianState[ 3 ] = CartVel[ i ][ 0 ]/1000;
+        cartesianState[ 4 ] = CartVel[ i ][ 1 ]/1000;
+        cartesianState[ 5 ] = CartVel[ i ][ 2 ]/1000;
+        convertedTle = atom::convertCartesianStateToTwoLineElements< Real, Vector6 >( cartesianState, DateTime( ), SolverStatus, 
+            IterationCount, referenceTle, kMU, kXKMPER, absTol, relTol, maxItr );
+        findSuccess = SolverStatus.find("success");    
+        if(findSuccess == std::string::npos)
+        {
+            std::cout << "Cartesian to TLE Conversion Failed" << std::endl;
+            tlefile << "Failure" << ",";
+            tlefile << "," << "," << "," << "," << "," << i << std::endl;
 
-	// Tle convertedTle = atom::convertCartesianStateToTwoLineElements< Real, Vector6 >( cartesianState, DateTime( ) );
-
-	// std::cout << convertedTle << std::endl; 
-
+        }
+        else
+        {
+            tlefile << "Success" << ",";
+            tlefile << IterationCount << "," << ",";
+            tlefile << "Epoch = " << convertedTle.Epoch() << std::endl;
+            tlefile << "," << "," << "," << "Mean motion Dt2 = " << convertedTle.MeanMotionDt2() << std::endl;
+            tlefile << "," << "," << "," << "Mean motion Ddt6 = " << convertedTle.MeanMotionDdt6() << std::endl;
+            tlefile << "," << "," << "," << "B(*) = " << convertedTle.BStar() << std::endl;
+            tlefile << "," << "," << "," << "Inclination = " << convertedTle.Inclination(1) << std::endl;
+            tlefile << "," << "," << "," << "RAAN = " << convertedTle.RightAscendingNode(1) << std::endl;
+            tlefile << "," << "," << "," << "Eccentricity = " << convertedTle.Eccentricity() << std::endl;
+            tlefile << "," << "," << "," << "AOP = " << convertedTle.ArgumentPerigee(1) << std::endl;
+            tlefile << "," << "," << "," << "Mean Anomaly = " << convertedTle.MeanAnomaly(1) << std::endl;
+            tlefile << "," << "," << "," << "Mean motion = " << convertedTle.MeanMotion() << std::endl << std::endl;
+        }   
+    }
+    tlefile.close();
     return EXIT_SUCCESS;
+}
+catch(const std::exception& err)
+{
+    std::cout << err.what() << std::endl;
+}
+    
 }
 
