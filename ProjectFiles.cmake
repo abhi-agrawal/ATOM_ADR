@@ -1,12 +1,12 @@
 # Set project source files.
 set(SRC
-  "${SRC_PATH}/randomKepElem.cpp"
-  "${SRC_PATH}/KepToCart.cpp"
+  "${SRC_PATH}/TleGen.cpp"
+  "${SRC_PATH}/randomGen.cpp"
 )
 
 # Set project main file.
 set(MAIN_SRC
-  "${SRC_PATH}/Atom-cartesianToTLE.cpp"
+  "${SRC_PATH}/main.cpp"
 )
 
 # Set project test source files.
