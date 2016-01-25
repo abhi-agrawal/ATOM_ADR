@@ -22,10 +22,26 @@ namespace randomGen
 	typedef std::vector< Real > VectorLong;
 	typedef boost::mt19937 generator_type; // mt19937 is a psuedo random number generator algorithm present in the boost library
 
-	void randomGen( const Vector2 range, const int limit, VectorLong& output)
+	void randomGen( const Vector2 range, const int limit, VectorLong& output )
 	{
 		// generator type defined and initialized by a seed value
 		generator_type generator( 900 ); // don't change the seed value while debugging otherwise the psuedo random generated numbers will change
+		// define uniform random number distribution which produces type double values
+		// between [min,max) for each orbital element. For more details please refer to 
+		// the following web link:
+		// http://www.boost.org/doc/libs/1_60_0/libs/random/example/random_demo.cpp
+		boost::uniform_real<> distribution( range[ 0 ], range[ 1 ] );
+		boost::variate_generator<generator_type&, boost::uniform_real<> > uniform(generator, distribution);
+		for(int i = 0; i < limit; i++)
+		{
+			output[ i ]	= uniform();
+		} 
+	}
+
+	void randomGenWithSeed( const Vector2 range, const int limit, VectorLong& output, const int seed )
+	{
+		// generator type defined and initialized by a seed value
+		generator_type generator( seed ); 
 		// define uniform random number distribution which produces type double values
 		// between [min,max) for each orbital element. For more details please refer to 
 		// the following web link:

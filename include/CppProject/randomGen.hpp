@@ -21,7 +21,9 @@ typedef double Real;
 typedef std::vector< Real > Vector2;
 typedef std::vector< Real > VectorLong;
 
-void randomGen( const Vector2 range, const int limit, VectorLong& output);
+void randomGen( const Vector2 range, const int limit, VectorLong& output );
+
+void randomGenWithSeed( const Vector2 range, const int limit, VectorLong& output, const int seed );
 } // namespace randomGen
 
 #endif // CPP_PROJECT_RANDOM_GEN_HPP
