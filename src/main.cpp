@@ -160,40 +160,50 @@ int main(void)
         tlefile.close();
     }
     else{
-            const int newLimit = 3; // number of random elementss to be generated
+            const int newLimit = 100; // number of random elementss to be generated
             Vector2D randKepElem( newLimit, std::vector < Real >( 6 ) );
             int indexer = 0;
             Vector RadiusOfPerigee( newLimit );
             std::ofstream tlefile;
             tlefile.open( "TLEfile.csv", std::ofstream::app );
             tlefile << "Solver Status Summary" << "," << "Iteration Count" << "," << "semi-major axis [km]" << "," << "eccentricity" << ",";
-            tlefile << "Inclination [deg]" << "," << "RAAN [deg]" << "," << "AOP [deg]" << "," << "Eccentric Anomaly [deg]" << "," << "Radius of Perigee [km]" << std::endl;
+            tlefile << "Inclination [deg]" << "," << "RAAN [deg]" << "," << "AOP [deg]" << ","; 
+            tlefile << "Eccentric Anomaly [deg]" << "," << "Radius of Perigee [km]" << std::endl;
             // Generate the TLEs for the final random set of orbital elements
             // std::string SolverStatus;
             // int IterationCount;
             // some other bookkeeping variables, these are not used in the convert to tle function
             std::size_t findSuccess;
 
-            Vector2 range_a = { (EarthDiam + 5000 * km2m), (EarthDiam + 10000 * km2m) }; // range for semi major axis
-            Vector2 range_e = { 0.5, 1.0 }; // range for eccentricity
-            Vector2 range_i = { 0.1, 1 }; // range for inclination
+            Vector2 range_a = { (EarthDiam + 10000 * km2m), (EarthDiam + 90000 * km2m) }; // range for semi major axis
+            Vector2 range_e = { 0.0, 1.0 }; // range for eccentricity
+            Vector2 range_i = { 0.0, 180.0 }; // range for inclination
+            Vector2 range_raan = { 0, 360.0 }; // range for raan
+            Vector2 range_w = { 0, 360.0 }; // range for argument of perigee
+            Vector2 range_EA = { 0, 360.0 }; // range for eccentric anomaly
 
             Vector eccentricity( newLimit ); // init. vector to store eccentricity values
             Vector semiAxis( newLimit ); // initialize vector of size newLimit 
             Vector inclination( newLimit ); // vector to store random inclination values
+            Vector raan( newLimit );
+            Vector aop( newLimit );
+            Vector EA( newLimit );
 
             randomGen::randomGen( range_a, newLimit, semiAxis); // random generator
             randomGen::randomGen( range_e, newLimit, eccentricity );
-            randomGen::randomGen( range_i, newLimit, inclination );    
+            randomGen::randomGen( range_i, newLimit, inclination );
+            randomGen::randomGen( range_raan, newLimit, raan );
+            randomGen::randomGen( range_w, newLimit, aop );
+            randomGen::randomGen( range_EA, newLimit, EA );    
 
             for(int i = 0; i < newLimit; i++)
             {
                 randKepElem[ i ][ 0 ] = semiAxis[ i ]; // semi major axis
                 randKepElem[ i ][ 1 ] = eccentricity[ i ]; // eccentricity
                 randKepElem[ i ][ 2 ] = sml::convertDegreesToRadians( inclination[ i ] ); // inclination
-                randKepElem[ i ][ 3 ] = sml::convertDegreesToRadians( 0 ); // RAAN
-                randKepElem[ i ][ 4 ] = sml::convertDegreesToRadians( 0 ); // AOP
-                randKepElem[ i ][ 5 ] = sml::convertDegreesToRadians( 0 ); // EA
+                randKepElem[ i ][ 3 ] = sml::convertDegreesToRadians( raan[ i ] ); // RAAN
+                randKepElem[ i ][ 4 ] = sml::convertDegreesToRadians( aop[ i ] ); // AOP
+                randKepElem[ i ][ 5 ] = sml::convertDegreesToRadians( EA[ i ] ); // EA
                 RadiusOfPerigee[ i ] = semiAxis[ i ] * ( 1 - eccentricity[ i ] );
             }
             while( indexer < newLimit)
@@ -207,7 +217,7 @@ int main(void)
                     std::cout << "Radius of Perigee = " << RadiusOfPerigee[ indexer - 1 ]/1000 << std::endl;
                     std::cout << "Semi Axis = " << randKepElem[ indexer - 1 ][ 0 ]/1000 << std::endl;
                     std::cout << "Eccentricity = " << randKepElem[ indexer - 1 ][ 1 ] << std::endl;
-                    std::cout << "Inclination = " << inclination[ indexer - 1 ] << std::endl;
+                    std::cout << "Inclination = " << sml::convertRadiansToDegrees( randKepElem[ indexer - 1 ][ 2 ] ) << std::endl;
 
                     TleGen::TleGen( randKepElem[ indexer - 1 ], SolverStatus, IterationCount );
                     // std::cout << SolverStatus << std::endl;
@@ -235,10 +245,11 @@ int main(void)
                 }
                 catch(const std::exception& err)
                 {
-                    // std::cout << SolverStatus << std::endl;
                     std::cout << "Error Caught = ";
                     std::cout << err.what() << std::endl;
-                    tlefile << "Exception Caught = " << err.what() << std::endl;
+                    tlefile << "Exception Caught = " << err.what() << ",";
+                    tlefile << "," << semiAxis[ indexer - 1 ]/1000 << "," << eccentricity[ indexer - 1 ] << "," << inclination[ indexer - 1 ] << ",";
+                    tlefile << raan[ indexer - 1 ] << "," << aop[ indexer - 1 ] << "," << EA[ indexer - 1 ] << "," << RadiusOfPerigee[ indexer - 1 ]/1000 << std::endl;
                 }
             }
             tlefile << std::endl << std::endl;
