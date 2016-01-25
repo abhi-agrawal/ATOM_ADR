@@ -45,7 +45,7 @@ int main(void)
     const double EarthDiam = 2 * EarthRadius;
     // grav. parameter 'mu' of earth
     // const double muEarth = kMU*( pow( 10, 9 ) ); // unit m^3/s^2
-    const int bypass = false; // make this false to execute code with random orbital elements
+    const int bypass = true; // make this false to execute code with random orbital elements
 
     if(bypass == false){
         // initialize input parameters for the function generating random orbital elements. Description can be
@@ -121,7 +121,7 @@ int main(void)
 
         // file storage
         std::ofstream tlefile;
-        tlefile.open("TLEfile.csv");
+        tlefile.open("TLEfile.csv", std::ofstream::app);
         tlefile << "Solver Status Summary" << "," << "Iteration Count" << "," << "semi-major axis [km]" << "," << "eccentricity" << ",";
         tlefile << "Inclination [deg]" << "," << "RAAN [deg]" << "," << "AOP [deg]" << "," << "Eccentric Anomaly [deg]" << std::endl;
         // Generate the TLEs for the final random set of orbital elements
@@ -156,41 +156,94 @@ int main(void)
             }
             
         }
+        tlefile << std::endl << std::endl;
         tlefile.close();
     }
-    // else{
-    //         const int newLimit = 2;
-    //         Vector2D randKepElem( newLimit, std::vector < Real >( 6 ) );
-    //         int indexer = 0;
+    else{
+            const int newLimit = 3; // number of random elementss to be generated
+            Vector2D randKepElem( newLimit, std::vector < Real >( 6 ) );
+            int indexer = 0;
+            Vector RadiusOfPerigee( newLimit );
+            std::ofstream tlefile;
+            tlefile.open( "TLEfile.csv", std::ofstream::app );
+            tlefile << "Solver Status Summary" << "," << "Iteration Count" << "," << "semi-major axis [km]" << "," << "eccentricity" << ",";
+            tlefile << "Inclination [deg]" << "," << "RAAN [deg]" << "," << "AOP [deg]" << "," << "Eccentric Anomaly [deg]" << "," << "Radius of Perigee [km]" << std::endl;
+            // Generate the TLEs for the final random set of orbital elements
+            // std::string SolverStatus;
+            // int IterationCount;
+            // some other bookkeeping variables, these are not used in the convert to tle function
+            std::size_t findSuccess;
 
-    //         Vector2 range_a = { (EarthRadius + 100 * km2m), (EarthRadius + 1000 * km2m) }; // range for semi major axis
-    //         Vector semiAxis( newLimit, 0 ); // initialize vector of size newLimit with all zeros as elements
-    //         randomGen::randomGen( range_a, newLimit, semiAxis); // random generator
-    //         for(int i = 0; i < newLimit; i++)
-    //         {
-    //             randKepElem[ i ][ 0 ] = semiAxis[ i ]; // semi major axis
-    //             randKepElem[ i ][ 1 ] = 0; // eccentricity
-    //             randKepElem[ i ][ 2 ] = sml::convertDegreesToRadians( 0 ); // inclination
-    //             randKepElem[ i ][ 3 ] = sml::convertDegreesToRadians( 0 ); // RAAN
-    //             randKepElem[ i ][ 4 ] = sml::convertDegreesToRadians( 0 ); //AOP
-    //             randKepElem[ i ][ 5 ] = sml::convertDegreesToRadians( 0 ); //EA
-    //         }
-    //         while( indexer < newLimit)
-    //         {
-    //             try
-    //             {
-    //                 indexer++;
-    //                 KepToCartToTLE::KepToCartToTLE( 1, randKepElem );   
-    //                 std::cout << "indexer = " << indexer << std::endl;
-                     
-    //             }
-    //             catch(const std::exception& err)
-    //             {
-    //                 std::cout << "Error Caught = ";
-    //                 std::cout << err.what() << std::endl;
-    //             }
-    //         }
-    //     }
+            Vector2 range_a = { (EarthDiam + 5000 * km2m), (EarthDiam + 10000 * km2m) }; // range for semi major axis
+            Vector2 range_e = { 0.5, 1.0 }; // range for eccentricity
+            Vector2 range_i = { 0.1, 1 }; // range for inclination
+
+            Vector eccentricity( newLimit ); // init. vector to store eccentricity values
+            Vector semiAxis( newLimit ); // initialize vector of size newLimit 
+            Vector inclination( newLimit ); // vector to store random inclination values
+
+            randomGen::randomGen( range_a, newLimit, semiAxis); // random generator
+            randomGen::randomGen( range_e, newLimit, eccentricity );
+            randomGen::randomGen( range_i, newLimit, inclination );    
+
+            for(int i = 0; i < newLimit; i++)
+            {
+                randKepElem[ i ][ 0 ] = semiAxis[ i ]; // semi major axis
+                randKepElem[ i ][ 1 ] = eccentricity[ i ]; // eccentricity
+                randKepElem[ i ][ 2 ] = sml::convertDegreesToRadians( inclination[ i ] ); // inclination
+                randKepElem[ i ][ 3 ] = sml::convertDegreesToRadians( 0 ); // RAAN
+                randKepElem[ i ][ 4 ] = sml::convertDegreesToRadians( 0 ); // AOP
+                randKepElem[ i ][ 5 ] = sml::convertDegreesToRadians( 0 ); // EA
+                RadiusOfPerigee[ i ] = semiAxis[ i ] * ( 1 - eccentricity[ i ] );
+            }
+            while( indexer < newLimit)
+            {
+                std::string SolverStatus;
+                int IterationCount;
+                try
+                {
+                    indexer++;
+                    std::cout << "indexer = " << indexer << std::endl;
+                    std::cout << "Radius of Perigee = " << RadiusOfPerigee[ indexer - 1 ]/1000 << std::endl;
+                    std::cout << "Semi Axis = " << randKepElem[ indexer - 1 ][ 0 ]/1000 << std::endl;
+                    std::cout << "Eccentricity = " << randKepElem[ indexer - 1 ][ 1 ] << std::endl;
+                    std::cout << "Inclination = " << inclination[ indexer - 1 ] << std::endl;
+
+                    TleGen::TleGen( randKepElem[ indexer - 1 ], SolverStatus, IterationCount );
+                    // std::cout << SolverStatus << std::endl;
+                    findSuccess = SolverStatus.find("success");    
+                    if(findSuccess == std::string::npos){
+                            std::cout << "TLE Conversion Failed" << std::endl;
+                            tlefile << "Failed" << "," << IterationCount << ",";
+                            tlefile << ( randKepElem[ indexer - 1 ][ 0 ]/1000 ) << ",";
+                            tlefile << randKepElem[ indexer - 1 ][ 1 ] << ",";
+                            tlefile << sml::convertRadiansToDegrees( randKepElem[ indexer - 1 ][ 2 ] ) << ",";
+                            tlefile << sml::convertRadiansToDegrees( randKepElem[ indexer - 1 ][ 3 ] ) << ",";
+                            tlefile << sml::convertRadiansToDegrees( randKepElem[ indexer - 1 ][ 4 ] ) << ",";
+                            tlefile << sml::convertRadiansToDegrees( randKepElem[ indexer - 1 ][ 5 ] ) << "," << RadiusOfPerigee[ indexer - 1 ]/1000 << std::endl;   
+                    }
+                    else{
+                            std::cout << "TLE conversion success" << std::endl;
+                            tlefile << "Success" << "," << IterationCount << ",";
+                            tlefile << ( randKepElem[ indexer - 1 ][ 0 ]/1000 ) << ",";
+                            tlefile << randKepElem[ indexer - 1 ][ 1 ] << ",";
+                            tlefile << sml::convertRadiansToDegrees( randKepElem[ indexer - 1 ][ 2 ] ) << ",";
+                            tlefile << sml::convertRadiansToDegrees( randKepElem[ indexer - 1 ][ 3 ] ) << ",";
+                            tlefile << sml::convertRadiansToDegrees( randKepElem[ indexer - 1 ][ 4 ] ) << ",";
+                            tlefile << sml::convertRadiansToDegrees( randKepElem[ indexer - 1 ][ 5 ] ) << "," << RadiusOfPerigee[ indexer - 1 ]/1000 << std::endl;
+                    }
+                }
+                catch(const std::exception& err)
+                {
+                    // std::cout << SolverStatus << std::endl;
+                    std::cout << "Error Caught = ";
+                    std::cout << err.what() << std::endl;
+                    tlefile << "Exception Caught = " << err.what() << std::endl;
+                }
+            }
+            tlefile << std::endl << std::endl;
+            tlefile.close();
+        }
    return EXIT_SUCCESS;
 }
 

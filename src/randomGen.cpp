@@ -25,7 +25,7 @@ namespace randomGen
 	void randomGen( const Vector2 range, const int limit, VectorLong& output)
 	{
 		// generator type defined and initialized by a seed value
-		generator_type generator( 100 ); // don't change the seed value while debugging otherwise the psuedo random generated numbers will change
+		generator_type generator( 400 ); // don't change the seed value while debugging otherwise the psuedo random generated numbers will change
 		// define uniform random number distribution which produces type double values
 		// between [min,max) for each orbital element. For more details please refer to 
 		// the following web link:
