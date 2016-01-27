@@ -166,7 +166,7 @@ int main(void)
             Vector RadiusOfPerigee( newLimit ); // to store radius of perigee value for each random orbit generated
             
             std::ofstream tlefile; // output file handle
-            tlefile.open( "TLEfile2.csv", std::ofstream::app ); // open the file and append the data
+            tlefile.open( "TLEfile3.csv", std::ofstream::app ); // open the file and append the data
             tlefile << "Solver Status Summary" << "," << "Iteration Count" << "," << "semi-major axis [km]" << "," << "SMA Seed" << ",";
             tlefile << "eccentricity" << "," << "ECC Seed" << ",";
             tlefile << "Inclination [deg]" << "," << "INC Seed" << ",";
