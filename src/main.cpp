@@ -45,7 +45,7 @@ int main(void)
     const double EarthDiam = 2 * EarthRadius;
     // grav. parameter 'mu' of earth
     // const double muEarth = kMU*( pow( 10, 9 ) ); // unit m^3/s^2
-    const int bypass = true; // make this false to execute code with random orbital elements
+    const int bypass = true; // keep this true, this just enables executing an alternate code snippet that takes care of thrown exceptions from ATOM
 
     if(bypass == false){
         // initialize input parameters for the function generating random orbital elements. Description can be
