@@ -1,23 +1,8 @@
-CppProject
+Test Atom Project
 ===
 
-\cond [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT) [![Build Status](https://travis-ci.org/kartikkumar/cpp-project.svg?branch=master)](https://travis-ci.org/kartikkumar/cpp-project)[![Coverity Scan Build Status](https://scan.coverity.com/projects/3686/badge.svg)](https://scan.coverity.com/projects/3686) [![Coverage Status](https://coveralls.io/repos/kartikkumar/cpp-project/badge.svg?branch=master&service=github)](https://coveralls.io/github/kartikkumar/cpp-project?branch=master) \endcond
+`Test Atom Project` is for testing and playing around with ATOM. 
 
-`CppProject` is a template for a simple CMake-based C++ project. It can be used as the basis for new projects: remember to change all instances of `CppProject` to your new project name. An example CMake module is available to make it easy to include your project in other CMake-based projects (should be customized): [FindCppProject.cmake](https://github.com/kartikkumar/cmake-modules/Modules/FindCppProject.cmake).
-
-Features
-------
-
-  - General directory structure common to C++ projects
-  - Example of CMake module (`cmake/Modules/FindCppProject.cmake`)
-  - Testing framework ([Catch](https://www.github.com/philsquared/Catch "Catch Github repository"))
-  - Install script (`make install`)
-  - CPack script for packaging (`make package`)
-  - Automatic API documentation ([Doxygen](http://www.doxygen.org "Doxygen homepage"))
-  - Continuous Integration ([Travis CI](https://travis-ci.org/ "Travis CI homepage"))
-  - Code coverage analysis ([Coveralls](https://coveralls.io "Coveralls.io homepage")) (`make coverage`)
-  - Example of how to include external dependencies (using `ExternalProject` module)
-  - Separate file to specify location of project files (`ProjectFiles.cmake`)
 
 Requirements
 ------
@@ -31,22 +16,30 @@ To install this project, please ensure that you have installed the following (in
   - [Gcov](https://gcc.gnu.org/onlinedocs/gcc/Gcov.html) (optional)
   - [LCOV](http://ltp.sourceforge.net/coverage/lcov.php) (optional)
 
-`CppProject`  does not depend on any libraries. The following library is optional (see `Build options`):
+`In addition, Test Atom Project depends on the following libraries:
 
-  - [CATCH](https://www.github.com/philsquared/Catch) (unit testing library necessary for `BUILD_TESTS` build option)
+  - [SML](https://www.github.com/kartikkumar/sml) (math library)
+  - [PyKEP](https://github.com/esa/pykep) (ESA scientific library for interplanetary trajectory design)
+  - [Astro](https://www.github.com/kartikkumar/astro) (astrodynamics library)
+  - [GSL](http://www.gnu.org/software/gsl) (GNU scientific library that includes non-linear root-finders used)
+  - [SGP4](https://www.github.com/kartikkumar/sgp4deorbit) (SGP4/SDP4 library)
+  - [CATCH](https://www.github.com/philsquared/Catch) (unit testing library necessary for `BUILD_TESTS` option)
+  - [Eigen](http://eigen.tuxfamily.org/) (linear algebra library necessary for `BUILD_TESTS_WITH_EIGEN` option)
 
-This dependency will be downloaded and configured automagically if not already present locally (requires an internet connection).
+These dependencies will be downloaded and configured automatically if not already present locally (requires an internet connection). It takes a while to install [GSL](http://www.gnu.org/software/gsl) automagically, so it is recommended to pre-install if possible using e.g., [Homebrew](http://brewformulas.org/Gsl) on Mac OS X, [apt-get](http://askubuntu.com/questions/490465/install-gnu-scientific-library-gsl-on-ubuntu-14-04-via-terminal) on Ubuntu, [Gsl for Windows](http://gnuwin32.sourceforge.net/packages/gsl.htm))..
 
 Installation
 ------
 
-Run the following commands to download, build, and install this project. Substitute "project_name" with the name of your project (if you leave it out, the repository will be cloned to a local folder called "cpp-project"). This will customize the project targets for you. Note that "project_name" must not contain spaces! The ` --depth 1` parameter passed to `git clone` ensures that the git history is not downloaded. In case you would like to preserve the history of this project, omit that option.
+Before running any commands, go to subdirectory /src and open the C++ file 'TleGen.cpp' for editing. Change the "include" location for the header file par2ic.h (Assuming that you have already installed the PyKEP library from ESA) to wherever you have that header file located on your system. Once done, follow the procedure given below. 
 
-    git clone https://www.github.com/kartikkumar/cpp-project --depth 1 <project_name>
-    cd <project_name>
+Run the following commands to download, build, and install this project. 
+
+    git clone https://github.com/abhi-agrawal/TestAtomProject.git
+    cd TestAtomProject
     git submodule init && git submodule update
     mkdir build && cd build
-    cmake -DPROJECT_NAME=<project_name> .. && cmake --build .
+    cmake .. && cmake --build 
 
 To install the header files, run the following from within the `build` directory:
 
@@ -85,7 +78,7 @@ This project has been set up with a specific file/folder structure in mind. The 
   - `doxydocs`: HTML output generated by building [Doxygen](http://www.doxygen.org "Doxygen homepage") documentation
   - `include/CppProject`: Project header files (*.hpp)
   - `scripts`: Shell scripts used in [Travis CI](https://travis-ci.org/ "Travis CI homepage") build
-  - `src`: Project source files (*.cpp), including `main.cpp`, which contains example main-function for project build
+  - `src`: Project source files (*.cpp), including `main.cpp`
   - `test`: Project test source files (*.cpp), including `testCppProject.cpp`, which contains include for [Catch](https://www.github.com/philsquared/Catch "Catch Github repository")
   - `.travis.yml`: Configuration file for [Travis CI](https://travis-ci.org/ "Travis CI homepage") build, including static analysis using [Coverity Scan](https://scan.coverity.com/ "Coverity Scan homepage") and code coverage using [Coveralls](https://coveralls.io "Coveralls.io homepage")
   - `CMakeLists.txt`: main `CMakelists.txt` file for project (should not need to be modified for basic build)
@@ -95,18 +88,7 @@ This project has been set up with a specific file/folder structure in mind. The 
   - `ProjectFiles.cmake`: list of project source files to build
   - `README.md`: project readme file, parsed as main page for [Doxygen](http://www.doxygen.org "Doxygen homepage") documentation
 
-Contributing
-------------
-
-Once you've made your great commits:
-
-  1. [Fork](https://github.com/kartikkumar/cpp-project/fork) `CppProject`
-  2. Create a topic branch - `git checkout -b my_branch`
-  3. Push to your branch - `git push origin my_branch`
-  4. Create a [Pull Request](http://help.github.com/pull-requests/) from your branch
-  5. That's it!
-
 Disclaimer
 ------
 
-The copyright holders are not liable for any damage(s) incurred due to improper use of `CppProject`.
+The copyright holders are not liable for any damage(s) incurred due to improper use of `Test Atom Project`.
