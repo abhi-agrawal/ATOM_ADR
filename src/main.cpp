@@ -49,23 +49,34 @@ int main(void)
 
     // read the TLE file. Line based parsing, using string streams
     std::string line;
-    int lineCounter = 1;
+    int lineCounter = 0;
     std::ifstream tlefile( "../../src/ADRcatalog.txt" );
     
     if( !tlefile.is_open() )
         perror("error while opening file");
 
-    while( std::getline(tlefile, line) )
+    int counter = 0;
+    std::string line1, line2, line3;
+    Vector2D DebrisPosition( 20, std::vector < Real >( 3 ) ); // 20 TLEs
+    while( !tlefile.eof( ) )
     {
-        std::cout << line.data() << std::endl;
-        ++lineCounter;
-        if( lineCounter == 4 )
-        {
-            lineCounter = 1;
-            std::cout << std::endl;
-        }
+        std::getline( tlefile, line1 );
+        std::getline( tlefile, line2 );
+        std::getline( tlefile, line3 );
+        Tle tle( line2, line3 );
+        SGP4 sgp4( tle );
+        Eci StateVector = sgp4.FindPosition( 0.0 );    
+        DebrisPosition[ counter ][ 0 ] = StateVector.Position( ).x;
+        DebrisPosition[ counter ][ 1 ] = StateVector.Position( ).y;
+        DebrisPosition[ counter ][ 2 ] = StateVector.Position( ).z;
+        ++counter; 
     }
-    
+    tlefile.close( );
+
+    Vector3 DeparturePosition( 3 ); // km
+    Vector3 ArrivalPosition( 3 ); // km
+    Vector3 DepartureVelocityGuess( 3 ); //km/s
+        
    return EXIT_SUCCESS;
 }
 
