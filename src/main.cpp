@@ -83,8 +83,8 @@ int main(void)
 
     // read the TLE file. Line based parsing, using string streams
     std::string line;
-    int lineCounter = 0;
-    std::ifstream tlefile( "../../src/ADRcatalog.txt" );
+    
+    std::ifstream tlefile( "../../src/catalog_rocketbodiesLEO_SAFE1000km.txt" );
     
     if( !tlefile.is_open() )
         perror("error while opening file");
@@ -116,91 +116,106 @@ int main(void)
 
     const Real TOF = 1000.0; // time of flight in seconds
     const Real coasting = 500.0; // coasting time at a debris in seconds
-    for( unsigned int i = 0; i < 4; i++ )
+
+    int counter = 0;
+
+    while( counter != DebrisObjects )
     {
-        Tle departureObject = tleObjects[ i ]; // first tle element is assumed to be the starting point and not the debris itself
-        SGP4 sgp4Departure( departureObject );
-
-        const DateTime departureEpoch( 2016, 2, 1 ); // year month day
-
-        const Eci tleDepartureState = sgp4Departure.FindPosition( departureEpoch );
-        const Vector6 departureState = getStateVector( tleDepartureState );
-
-        array3 departurePosition;
-        array3 departureVelocity;
-        for( int j = 0; j < 3; j++ )
+        ++counter;
+        try
         {
-            departurePosition[ j ] = departureState[ j ];
-            departureVelocity[ j ] = departureState[ j + 3 ];
-        }
-        const int departureObjectId = static_cast< int >( departureObject.NoradNumber( ) );
 
-        Tle arrivalObject = tleObjects[ i + 1 ];
-        SGP4 sgp4Arrival( arrivalObject );
-        const int arrivalObjectId = static_cast< int >( arrivalObject.NoradNumber( ) );
+            for( int i = 0; i < DebrisObjects; i++ )
+            {
+                Tle departureObject = tleObjects[ i ]; // first tle element is assumed to be the starting point and not the debris itself
+                SGP4 sgp4Departure( departureObject );
 
-        const DateTime arrivalEpoch = departureEpoch.AddSeconds( TOF );
-        const Eci tleArrivalState = sgp4Arrival.FindPosition( arrivalEpoch );
-        const Vector6 arrivalState = getStateVector( tleArrivalState );
+                const DateTime departureEpoch( 2016, 2, 1 ); // year month day
 
-        array3 arrivalPosition;
-        array3 arrivalVelocity;
-        for( int j = 0; j < 3; j++ )
+                const Eci tleDepartureState = sgp4Departure.FindPosition( departureEpoch );
+                const Vector6 departureState = getStateVector( tleDepartureState );
+
+                array3 departurePosition;
+                array3 departureVelocity;
+                for( int j = 0; j < 3; j++ )
+                {
+                    departurePosition[ j ] = departureState[ j ];
+                    departureVelocity[ j ] = departureState[ j + 3 ];
+                }
+                const int departureObjectId = static_cast< int >( departureObject.NoradNumber( ) );
+
+                Tle arrivalObject = tleObjects[ i + 1 ];
+                SGP4 sgp4Arrival( arrivalObject );
+                const int arrivalObjectId = static_cast< int >( arrivalObject.NoradNumber( ) );
+
+                const DateTime arrivalEpoch = departureEpoch.AddSeconds( TOF );
+                const Eci tleArrivalState = sgp4Arrival.FindPosition( arrivalEpoch );
+                const Vector6 arrivalState = getStateVector( tleArrivalState );
+
+                array3 arrivalPosition;
+                array3 arrivalVelocity;
+                for( int j = 0; j < 3; j++ )
+                {
+                    arrivalPosition[ j ] = arrivalState[ j ];
+                    arrivalVelocity[ j ] = arrivalState[ j + 3 ];
+                } 
+
+                kep_toolbox::lambert_problem targeter( departurePosition, arrivalPosition, TOF, kMU, 0, 5 );
+                const int numberOfSolutions = targeter.get_v1( ).size( );
+                std::vector< array3 > departureDeltaVs( numberOfSolutions ); // delta-V components at the departure point
+                std::vector< array3 > arrivalDeltaVs( numberOfSolutions );                
+                std::vector< Real > transferDeltaVs( numberOfSolutions ); // magnitude of the total delta-V of one transfer between two points
+
+                for ( int j = 0; j < numberOfSolutions; j++ )
+                {
+                    array3 transferDepartureVelocity = targeter.get_v1( )[ j ]; // velocity of the s/c at the departure point in the transfer orbit
+                    array3 transferArrivalVelocity = targeter.get_v2( )[ j ];
+
+                    departureDeltaVs[ j ] = sml::add( transferDepartureVelocity, sml::multiply( departureVelocity, -1.0 ) );
+                    arrivalDeltaVs[ j ] = sml::add( transferArrivalVelocity, sml::multiply( arrivalVelocity, -1.0 ) );
+
+                    transferDeltaVs[ j ] = sml::norm< Real >( departureDeltaVs[ j ] ) + sml::norm< Real >( arrivalDeltaVs[ j ] );
+                }
+
+                const std::vector< Real >::iterator minDeltaVIterator = std::min_element( transferDeltaVs.begin( ), transferDeltaVs.end( ) );
+                const int minimumDeltaVIndex = std::distance( transferDeltaVs.begin( ), minDeltaVIterator );
+                
+                array3 minIndexDepartureVelocity = targeter.get_v1( )[ minimumDeltaVIndex ]; // best guess for velocity in transfer orbit at the departure point
+                Vector3 departureVelocityGuess( 3 );
+                Vector3 atomDeparturePosition( 3 );
+                Vector3 atomArrivalPosition( 3 );
+                
+                for( int j = 0; j < 3; j++ )
+                {
+                    departureVelocityGuess[ j ] = minIndexDepartureVelocity[ j ];
+                    atomDeparturePosition[ j ] = departurePosition[ j ];
+                    atomArrivalPosition[ j ] = arrivalPosition[ j ];
+                }
+
+                Vector3 atomDepartureVelocity( 3 );
+                Vector3 atomArrivalVelocity( 3 );
+                // typedef std::pair < Vector3, Vector3 > Velocities;
+                std::string SolverStatusSummary;
+                int numberOfIterations;
+                const int maxIterations = 100;
+                const Tle referenceTle = Tle( );
+                Vector6 atomVelocities( 6 );
+
+                atomVelocities = atom::executeAtomSolver< Real, Vector3, Vector6 >( atomDeparturePosition, departureEpoch, 
+                                                                                    atomArrivalPosition, TOF, departureVelocityGuess, 
+                                                                                    SolverStatusSummary, numberOfIterations, 
+                                                                                    referenceTle, kMU, kXKMPER, 1.0e-10, 1.0e-5, maxIterations );
+
+
+                std::cout << "Departure ID = " << departureObjectId << std::endl;
+                std::cout << "Arrival ID = " << arrivalObjectId << std::endl;
+            }
+        }  
+        catch( const std::exception& err )   
         {
-            arrivalPosition[ j ] = arrivalState[ j ];
-            arrivalVelocity[ j ] = arrivalState[ j + 3 ];
-        } 
-
-        kep_toolbox::lambert_problem targeter( departurePosition, arrivalPosition, TOF, kMU, 0, 5 );
-        const int numberOfSolutions = targeter.get_v1( ).size( );
-        std::vector< array3 > departureDeltaVs( numberOfSolutions ); // delta-V components at the departure point
-        std::vector< array3 > arrivalDeltaVs( numberOfSolutions );                
-        std::vector< Real > transferDeltaVs( numberOfSolutions ); // magnitude of the total delta-V of one transfer between two points
-
-        for ( int j = 0; j < numberOfSolutions; j++ )
-        {
-            array3 transferDepartureVelocity = targeter.get_v1( )[ j ]; // velocity of the s/c at the departure point in the transfer orbit
-            array3 transferArrivalVelocity = targeter.get_v2( )[ j ];
-
-            departureDeltaVs[ j ] = sml::add( transferDepartureVelocity, sml::multiply( departureVelocity, -1.0 ) );
-            arrivalDeltaVs[ j ] = sml::add( transferArrivalVelocity, sml::multiply( arrivalVelocity, -1.0 ) );
-
-            transferDeltaVs[ j ] = sml::norm< Real >( departureDeltaVs[ j ] ) + sml::norm< Real >( arrivalDeltaVs[ j ] );
-        }
-
-        const std::vector< Real >::iterator minDeltaVIterator = std::min_element( transferDeltaVs.begin( ), transferDeltaVs.end( ) );
-        const int minimumDeltaVIndex = std::distance( transferDeltaVs.begin( ), minDeltaVIterator );
-        
-        array3 minIndexDepartureVelocity = targeter.get_v1( )[ minimumDeltaVIndex ]; // best guess for velocity in transfer orbit at the departure point
-        Vector3 departureVelocityGuess( 3 );
-        Vector3 atomDeparturePosition( 3 );
-        Vector3 atomArrivalPosition( 3 );
-        
-        for( int j = 0; j < 3; j++ )
-        {
-            departureVelocityGuess[ j ] = minIndexDepartureVelocity[ j ];
-            atomDeparturePosition[ j ] = departurePosition[ j ];
-            atomArrivalPosition[ j ] = arrivalPosition[ j ];
-        }
-
-        Vector3 atomDepartureVelocity( 3 );
-        Vector3 atomArrivalVelocity( 3 );
-        // typedef std::pair < Vector3, Vector3 > Velocities;
-        std::string SolverStatusSummary;
-        int numberOfIterations;
-        const int maxIterations = 100;
-        const Tle referenceTle = Tle( );
-        Vector6 atomVelocities( 6 );
-
-        atomVelocities = atom::executeAtomSolver< Real, Vector3, Vector6 >( atomDeparturePosition, departureEpoch, 
-                                                                            atomArrivalPosition, TOF, departureVelocityGuess, 
-                                                                            SolverStatusSummary, numberOfIterations, 
-                                                                            referenceTle, kMU, kXKMPER, 1.0e-10, 1.0e-5, maxIterations );
-
-        
-        
-    }
-        
+            std::cout << "Exception Caught = " << err.what( ) << std::endl << std::endl;
+        }  
+    } 
    return EXIT_SUCCESS;
 }
 
