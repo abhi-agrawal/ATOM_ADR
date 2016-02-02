@@ -119,6 +119,11 @@ int main(void)
     int failCount = 0;
     int catchDepartureID;
     int catchArrivalID;
+
+    std::ofstream outputfile;
+    outputfile.open( "../../src/Atom_Solver_Results.csv", std::ofstream::app );
+    outputfile << "Departure ID" << "," << "Arrival ID" << "," << "Departure Epoch" << "," << "time-of-flight [s]";
+    outputfile << "," << "Atom Delta-V [km/s]" << "," << "Lambert Delta-V [km/s]" << std::endl;
     
     const int timeOfFlightSteps = 1000;
      
@@ -217,7 +222,7 @@ int main(void)
                         const int maxIterations = 100;
                         const Tle referenceTle = departureObject;
                         Vector6 atomVelocities( 6 );
-
+                        
                         try
                         {
                             atomVelocities = atom::executeAtomSolver< Real, Vector3, Vector6 >( atomDeparturePosition, 
@@ -238,6 +243,9 @@ int main(void)
                             std::cout << "Departure ID = " << departureObjectId << std::endl;
                             std::cout << "Arrival ID = " << arrivalObjectId << std::endl;
                             
+                            outputfile << departureObjectId << "," << arrivalObjectId << ",";
+                            outputfile << departureEpoch << "," << TOF << ",";
+
                             for( int k = 0; k < 3; k++)
                             {
                                 atomDepartureVelocity[ k ] = atomVelocities[ k ];
@@ -256,6 +264,8 @@ int main(void)
                             std::cout << "Atom Total Delta V = " << AtomDeltaV << std::endl;
                             std::cout << "Lambert Delta V = " << transferDeltaVs[ minimumDeltaVIndex ] << std::endl;
                             std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl << std::endl;
+
+                            outputfile << AtomDeltaV << "," << transferDeltaVs[ minimumDeltaVIndex ] << std::endl;
                         }
                         catch( const std::exception& err )   
                         {
@@ -267,6 +277,7 @@ int main(void)
                     // }  
                 }
             }
+            outputfile.close( );
 
    return EXIT_SUCCESS;
 }
