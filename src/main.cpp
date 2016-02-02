@@ -90,43 +90,55 @@ int main(void)
         perror("error while opening file");
 
     std::vector < Tle > tleObjects; // vector of TLE objects
-    std::vector < std::string > tleStrings;
+    
 
     while( !tlefile.eof( ) )
     {
+        std::vector < std::string > tleStrings;
+
         std::getline( tlefile, line ); // read line from the catalog file
         removeNewline( line ); // remove new line characters such as '/n'
         tleStrings.push_back( line );
+        // std::cout << line << std::endl;
 
         std::getline( tlefile, line );
         removeNewline( line );
         tleStrings.push_back( line );
+        // std::cout << line << std::endl;
 
         std::getline( tlefile, line );
         removeNewline( line );
         tleStrings.push_back( line );
+        // std::cout << line << std::endl << std::endl;
 
-        Tle temp( tleStrings[ 0 ], tleStrings[ 1 ], tleStrings[ 2 ] );
-        tleObjects.push_back( temp );
+        tleObjects.push_back( Tle( tleStrings[ 0 ], tleStrings[ 1 ], tleStrings[ 2 ] ) );
     }
     tlefile.close( );
     
     const int DebrisObjects = tleObjects.size( );
     std::cout << "Total debris objects = " << DebrisObjects << std::endl; 
+    // for( int k = 0; k < DebrisObjects; k++ )
+    // {
+    //     std::cout << tleObjects[ k ].NoradNumber( ) << std::endl;
+    // }
 
     const Real TOF = 1000.0; // time of flight in seconds
     const Real coasting = 500.0; // coasting time at a debris in seconds
 
     int counter = 0;
+    int failCount = 0;
+    int catchDepartureID;
+    int catchArrivalID;
+    int i;
 
-    while( counter != DebrisObjects )
+    while( counter != DebrisObjects - 1 )
     {
-        ++counter;
+        
         try
         {
-
-            for( int i = 0; i < DebrisObjects; i++ )
-            {
+                i = counter;      
+            // for( int i = counter; i < DebrisObjects; )
+            // {
                 Tle departureObject = tleObjects[ i ]; // first tle element is assumed to be the starting point and not the debris itself
                 SGP4 sgp4Departure( departureObject );
 
@@ -143,10 +155,15 @@ int main(void)
                     departureVelocity[ j ] = departureState[ j + 3 ];
                 }
                 const int departureObjectId = static_cast< int >( departureObject.NoradNumber( ) );
+                // std::cout << "departure Object ID = " << departureObjectId << std::endl;
+                catchDepartureID = departureObjectId; // for the catch segment of the program
 
                 Tle arrivalObject = tleObjects[ i + 1 ];
                 SGP4 sgp4Arrival( arrivalObject );
+
                 const int arrivalObjectId = static_cast< int >( arrivalObject.NoradNumber( ) );
+                // std::cout << "Arrival Object ID = " << arrivalObjectId << std::endl;
+                catchArrivalID = arrivalObjectId;
 
                 const DateTime arrivalEpoch = departureEpoch.AddSeconds( TOF );
                 const Eci tleArrivalState = sgp4Arrival.FindPosition( arrivalEpoch );
@@ -198,7 +215,7 @@ int main(void)
                 std::string SolverStatusSummary;
                 int numberOfIterations;
                 const int maxIterations = 100;
-                const Tle referenceTle = Tle( );
+                const Tle referenceTle = departureObject;
                 Vector6 atomVelocities( 6 );
 
                 atomVelocities = atom::executeAtomSolver< Real, Vector3, Vector6 >( atomDeparturePosition, departureEpoch, 
@@ -206,15 +223,24 @@ int main(void)
                                                                                     SolverStatusSummary, numberOfIterations, 
                                                                                     referenceTle, kMU, kXKMPER, 1.0e-10, 1.0e-5, maxIterations );
 
-
+                std::cout << "!!!!!!!!!!!!!!!!SUCCESS!!!!!!!!!!!!" << std::endl;
                 std::cout << "Departure ID = " << departureObjectId << std::endl;
                 std::cout << "Arrival ID = " << arrivalObjectId << std::endl;
-            }
-        }  
+                std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+                
+                
+                // ++counter;
+            // }
+        }
+          
         catch( const std::exception& err )   
         {
-            std::cout << "Exception Caught = " << err.what( ) << std::endl << std::endl;
+            ++failCount;
+            std::cout << "Exception Caught = " << err.what( ) << std::endl;
+            std::cout << "For departure ID = " << catchDepartureID << " " << "For Arrival ID = " << catchArrivalID << std::endl << std::endl;
+            // std::cout << "Fail count = " << failCount << std::endl;
         }  
+        ++counter;
     } 
    return EXIT_SUCCESS;
 }
